@@ -1,310 +1,109 @@
-# RustDesk Ubuntu Terminal Setup
+# RustDesk on Ubuntu – Installation & Configuration
 
-A practical guide to installing and configuring RustDesk on an Ubuntu virtual machine using SSH for administration.
-
-## Project Overview
-
-This project documents the installation and configuration of RustDesk on an Ubuntu VM connected to a television.
-
-The objective was to configure RustDesk to connect to an organisation's self-hosted RustDesk server, allowing remote desktop access without needing to administer the machine directly through its graphical interface.
-
-The project covers Linux package management, systemd service management, RustDesk configuration, unattended access, and troubleshooting.
-
-## Project Objectives
-
-- Install RustDesk on Ubuntu.
-- Configure RustDesk to use a self-hosted server.
-- Configure unattended remote access.
-- Understand how RustDesk operates as a Linux system service.
-- Investigate Linux processes and configuration file locations.
-- Test service recovery after restarting RustDesk.
+Deployment of RustDesk on an Ubuntu VM, administered through SSH and connected to a self-hosted RustDesk server.
 
 ## Environment
 
 | Component | Details |
 |---|---|
-| Operating system | Ubuntu |
+| OS | Ubuntu |
 | Architecture | x86_64 |
-| RustDesk version | 1.5.1 |
-| Installation method | Debian package (.deb) |
-| Administration | SSH |
-| Service manager | systemd |
+| RustDesk | 1.5.1 |
+| Installation | Debian package |
 | Display manager | LightDM |
-| Remote access | Self-hosted RustDesk server |
+| Service manager | systemd |
+| Administration | SSH |
 
-**Note:** The VM had a graphical desktop environment managed by LightDM. Administration and configuration were performed through SSH.
+## Installation
 
----
-
-## 1. Download and Install RustDesk
-
-First, check the system architecture:
-
-```bash
-uname -m
-```
-
-The system used for this project returned:
-
-```text
-x86_64
-```
-
-Download the RustDesk 1.5.1 Debian package:
+Downloaded and installed the RustDesk Debian package:
 
 ```bash
 wget https://github.com/rustdesk/rustdesk/releases/download/1.5.1/rustdesk-1.5.1-x86_64.deb
-```
-
-Update the package repositories:
-
-```bash
-sudo apt update
-```
-
-Install RustDesk:
-
-```bash
 sudo apt install -y ./rustdesk-1.5.1-x86_64.deb
 ```
 
-Verify the installation:
+Verified the installation using `rustdesk --version`.
 
-```bash
-rustdesk --version
-```
+## Service Management
 
-Expected output:
+RustDesk runs as a systemd service.
 
-```text
-1.5.1
-```
-
-**Troubleshooting note:** When downloading a specific release, ensure that the package filename matches the release version in the download URL. A mismatch can result in a 404 error.
-
----
-
-## 2. Verify the RustDesk Service
-
-RustDesk runs as a system service managed by systemd.
-
-Check the service status:
+Useful commands:
 
 ```bash
 sudo systemctl status rustdesk
-```
-
-The expected status is:
-
-```text
-Active: active (running)
-```
-
-Check whether the service is enabled at startup:
-
-```bash
+sudo systemctl restart rustdesk
 sudo systemctl is-enabled rustdesk
 ```
 
-Expected output:
+### Service Status
 
-```text
-enabled
-```
+The service is enabled and running.
 
-Useful service management commands:
+![RustDesk service status](download.png)
 
-```bash
-# Start RustDesk
-sudo systemctl start rustdesk
+## Server Configuration
 
-# Stop RustDesk
-sudo systemctl stop rustdesk
+The configuration files identified during deployment were:
 
-# Restart RustDesk
-sudo systemctl restart rustdesk
+- `/root/.config/rustdesk/RustDesk2.toml`
+- `/var/lib/lightdm/.config/rustdesk/RustDesk2.toml`
 
-# Check service status
-sudo systemctl status rustdesk
-```
+Both files were updated with the self-hosted server address and public key.
 
-### Service Status Screenshot
+Updating both configuration files resolved an issue where the VM appeared offline in the RustDesk client.
 
-The following screenshot demonstrates that the RustDesk systemd service is enabled and running.
+## Process Investigation
 
-<!-- Add service-status.png here after uploading it to the screenshots directory. -->
-
----
-
-## 3. Investigate RustDesk Processes
-
-During troubleshooting, the running processes were inspected:
+Process inspection using:
 
 ```bash
 ps aux | grep -i rustdesk
 ```
 
-The installation showed a system service running as `root`, while graphical RustDesk processes were running under the `lightdm` account.
+showed the following execution contexts:
 
-The observed process layout was:
+- `root` – RustDesk system service.
+- `lightdm` – Graphical server and tray processes.
 
-- `root` — RustDesk system service.
-- `lightdm` — RustDesk graphical server and tray processes.
+Understanding these processes helped identify the relevant configuration locations.
 
-This distinction was important when investigating why the custom server configuration was not being applied as expected.
+## Unattended Access
 
-**Important:** Process ownership and configuration locations can differ between Linux installations. Inspect the actual running processes rather than assuming that every installation uses the same accounts.
-
----
-
-## 4. Configure the Self-Hosted RustDesk Server
-
-RustDesk can be configured to use a self-hosted server by providing the appropriate server address and public key.
-
-The configuration files identified during this project included:
-
-```text
-/root/.config/rustdesk/RustDesk2.toml
-/var/lib/lightdm/.config/rustdesk/RustDesk2.toml
-```
-
-In this particular environment, both configuration files were updated.
-
-Example configuration structure:
-
-```toml
-rendezvous_server = 'YOUR_SERVER_ADDRESS:21116'
-
-[options]
-custom-rendezvous-server = 'YOUR_SERVER_ADDRESS'
-key = 'YOUR_PUBLIC_SERVER_KEY'
-```
-
-Replace the placeholders with the appropriate server details.
-
-### Configuration Troubleshooting
-
-Initially, the Ubuntu VM appeared in the RustDesk client's Discovery section but showed as offline.
-
-After investigating the running processes and configuration files, updating the `RustDesk2.toml` files in both the root and LightDM configuration directories resolved the issue.
-
-This was an observed result in this environment, not a universal requirement for all RustDesk installations.
-
-### Security Considerations
-
-- Do not publish actual company server addresses or keys if they are considered confidential.
-- Never publish passwords, device IDs, or authentication secrets.
-- Avoid uploading the complete `RustDesk.toml` file, as it may contain sensitive values such as encrypted IDs, salts, passwords, and pairing information.
-- Preserve existing configuration options unless you understand their purpose.
-
----
-
-## 5. Configure Unattended Access
-
-To configure a password for unattended access, the following command was used:
+Configured unattended access using:
 
 ```bash
 sudo rustdesk --password 'YOUR_STRONG_PASSWORD'
 ```
 
-RustDesk confirmed that the password was successfully configured.
+The password was successfully applied and remote connectivity was verified.
 
-**Security note:** Never commit actual passwords to GitHub. Use a strong, unique password for the real deployment.
+## Testing & Results
+
+The following tests were successful:
+
+- RustDesk connected to the self-hosted server.
+- Ubuntu VM was accessible from another RustDesk client.
+- Unattended access worked.
+- RustDesk service restarted successfully.
+- Remote access was restored after the service restart.
+
+## Key Takeaways
+
+Practical experience gained with:
+
+- Linux package management and systemd.
+- Process ownership and user contexts.
+- Application configuration and persistence.
+- Self-hosted remote-access infrastructure.
+- Linux service troubleshooting.
+
+## References
+
+- [RustDesk Documentation](https://rustdesk.com/docs/)
+- [RustDesk GitHub](https://github.com/rustdesk/rustdesk)
 
 ---
 
-## 6. Test Remote Connectivity
-
-After configuring the server details and unattended-access password:
-
-1. Open the RustDesk client on the remote computer.
-2. Ensure the client is configured to use the same self-hosted server.
-3. Locate the Ubuntu VM.
-4. Connect using the configured unattended-access password.
-
-The VM became accessible through the RustDesk client.
-
----
-
-## 7. Test Service Restart Persistence
-
-A final test was performed to confirm that remote access remained available after restarting the RustDesk service.
-
-Restart the service:
-
-```bash
-sudo systemctl restart
-
-8. Lessons Learned
-
-This project provided practical experience with:
-
-Installing Linux applications using Debian packages.
-
-Managing services with systemd.
-
-Investigating Linux processes and user ownership.
-
-Understanding application configuration files.
-
-Configuring self-hosted remote-access infrastructure.
-
-Troubleshooting connectivity and configuration persistence.
-
-Testing service recovery after a restart.
-
-Administering a graphical Ubuntu VM remotely through SSH.
-
-One of the key lessons was that Linux applications can use different execution contexts for their background services and graphical components. Understanding which user runs each process can make configuration troubleshooting much easier.
-
-9. Useful Commands Reference
-
-Task
-
-Command
-
-Check architecture
-
-uname -m
-
-Check RustDesk version
-
-rustdesk --version
-
-Check service status
-
-sudo systemctl status rustdesk
-
-Start service
-
-sudo systemctl start rustdesk
-
-Stop service
-
-sudo systemctl stop rustdesk
-
-Restart service
-
-sudo systemctl restart rustdesk
-
-Check startup status
-
-sudo systemctl is-enabled rustdesk
-
-Inspect processes
-
-ps aux | grep -i rustdesk
-
-10. References
-
-RustDesk Official Website
-
-RustDesk GitHub Repository
-
-RustDesk Documentation
-
-Project Status
-
-Completed: RustDesk 1.5.1 was installed and configured on the Ubuntu VM, connected to the organisation's self-hosted server, and tested successfully after a system service restart.
-
-This repository documents the practical implementation, configuration, and troubleshooting process
+**Status:** Deployment completed and tested successfully.
